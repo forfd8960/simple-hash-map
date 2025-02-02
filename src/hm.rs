@@ -75,8 +75,8 @@ impl<K: Hash + Eq + Clone + std::fmt::Debug, V: Clone> SimpleHashMap<K, V> {
     }
 
     pub fn insert(&mut self, key: K, value: V) -> usize {
-        if (self.len / self.cap) as f64 > DEFAULT_LOAD_FACTOR {
-            println!("trigger resize...");
+        if self.len as f64 / self.cap as f64 > DEFAULT_LOAD_FACTOR {
+            println!("trigger resize... to cap: {}", self.cap * 2);
 
             let mut new_buckets = Vec::with_capacity(self.cap * 2);
             let all_k_v = self.all_key_values();
@@ -92,10 +92,13 @@ impl<K: Hash + Eq + Clone + std::fmt::Debug, V: Clone> SimpleHashMap<K, V> {
                 bucket.add(k, v);
             }
 
+            self.cap *= 2;
             self.buckets = new_buckets;
         }
 
         let pos = self.position(&key, self.buckets.len());
+        println!("insert {:?} to map pos: {}", key, pos);
+
         let bucket = self.buckets.get_mut(pos).unwrap();
         bucket.add(key, value);
 
