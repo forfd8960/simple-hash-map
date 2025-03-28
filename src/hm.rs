@@ -1,7 +1,4 @@
-use std::{
-    collections::LinkedList,
-    hash::{DefaultHasher, Hash, Hasher},
-};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 const DEFAULT_LOAD_FACTOR: f64 = 0.75;
 
@@ -13,17 +10,17 @@ pub struct SimpleHashMap<K: Hash + Eq + Clone, V: Clone> {
 
 #[derive(Debug, Clone, PartialEq)]
 struct Bucket<K, V> {
-    kv_list: LinkedList<(K, V)>,
+    kv_list: Vec<(K, V)>,
 }
 
 impl<K: Hash + Eq + Clone, V: Clone> Bucket<K, V> {
     fn new() -> Self {
-        let kv_list: LinkedList<(K, V)> = LinkedList::new();
+        let kv_list: Vec<(K, V)> = Vec::new();
         Bucket { kv_list }
     }
 
     fn add(&mut self, key: K, value: V) {
-        self.kv_list.push_back((key, value));
+        self.kv_list.push((key, value));
     }
 
     fn get(&self, key: K) -> Option<(K, V)> {
@@ -36,21 +33,13 @@ impl<K: Hash + Eq + Clone, V: Clone> Bucket<K, V> {
     }
 
     fn remove(&mut self, key: K) {
-        let kv_list = self
-            .kv_list
-            .clone()
-            .into_iter()
-            .filter(|(k, _)| k != &key)
-            .collect();
-        self.kv_list = kv_list;
+        self.kv_list.retain(|v| v.0 != key);
     }
 
-    fn get_all_elements(&self) -> Vec<(K, V)> {
-        let mut res = Vec::new();
+    fn get_all_elements(&self, kv_res: &mut Vec<(K, V)>) {
         for (k, v) in self.kv_list.clone() {
-            res.push((k.clone(), v.clone()));
+            kv_res.push((k.clone(), v.clone()));
         }
-        res
     }
 }
 
@@ -78,8 +67,10 @@ impl<K: Hash + Eq + Clone + std::fmt::Debug, V: Clone> SimpleHashMap<K, V> {
         if self.len as f64 / self.cap as f64 > DEFAULT_LOAD_FACTOR {
             println!("trigger resize... to cap: {}", self.cap * 2);
 
+            let mut all_k_v = Vec::new();
+            self.all_key_values(&mut all_k_v);
+
             let mut new_buckets = Vec::with_capacity(self.cap * 2);
-            let all_k_v = self.all_key_values();
             for _ in 0..self.cap * 2 {
                 new_buckets.push(Bucket::new());
             }
@@ -120,12 +111,12 @@ impl<K: Hash + Eq + Clone + std::fmt::Debug, V: Clone> SimpleHashMap<K, V> {
         res.get(key)
     }
 
-    pub fn all_key_values(&self) -> Vec<(K, V)> {
-        let mut res = Vec::new();
+    pub fn all_key_values(&self, kv_res: &mut Vec<(K, V)>) {
         for bucket in self.buckets.iter() {
-            res.extend(bucket.get_all_elements());
+            let mut temp = Vec::new();
+            bucket.get_all_elements(&mut temp);
+            kv_res.extend(temp);
         }
-        res
     }
 }
 
@@ -170,7 +161,8 @@ mod tests {
         map.insert("C", 3);
         assert_eq!(map.len, 3);
 
-        let res = map.all_key_values();
+        let mut res = Vec::new();
+        map.all_key_values(&mut res);
         assert_eq!(res.len(), 3);
 
         assert!(compare_vec_ignore_order(
@@ -194,7 +186,8 @@ mod tests {
 
         assert_eq!(map.len, 10);
 
-        let res = map.all_key_values();
+        let mut res = Vec::new();
+        map.all_key_values(&mut res);
         assert_eq!(res.len(), 10);
 
         assert!(compare_vec_ignore_order(
